@@ -1,0 +1,11 @@
+[package]
+name = "gravity-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Core local execution graph and cell runtime for Gravity"
+
+[dependencies]
+
+[lints]
+workspace = true
