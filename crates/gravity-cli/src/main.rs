@@ -35,12 +35,14 @@ fn run_demo() -> Result<(), Box<dyn std::error::Error>> {
     runtime.add_cell("output", Output)?;
     runtime.connect("input", "processor")?;
     runtime.connect("processor", "output")?;
+    runtime.start()?;
     runtime.inject("input", Message::new(1, b"gravity genesis".to_vec()))?;
     let report = runtime.run_until_idle(1_000)?;
     println!(
-        "runtime idle: {} messages processed, {} pending",
-        report.processed_messages, report.pending_messages
+        "runtime idle: {} messages processed, {} deliveries routed, {} pending",
+        report.processed_messages, report.routed_messages, report.pending_messages
     );
+    runtime.stop()?;
     Ok(())
 }
 

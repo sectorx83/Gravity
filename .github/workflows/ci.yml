@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   rust:
-    name: Format, lint, and test
+    name: Format, lint, test, and demo
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -24,5 +24,9 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Run Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Run tests
+      - name: Run workspace tests
         run: cargo test --workspace --all-targets
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps
+      - name: Run CLI demonstration
+        run: cargo run --quiet -p gravity-cli -- demo
