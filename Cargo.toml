@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/gravity-core", "crates/gravity-cli"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/sectorx83/Gravity"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"
