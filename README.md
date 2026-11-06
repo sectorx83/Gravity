@@ -1,5 +1,9 @@
 # Gravity
 
+[![Gravity CI](https://github.com/sectorx83/Gravity/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/sectorx83/Gravity/actions/workflows/ci.yml)
+
+**Phase 1 status: Complete.** The local runtime foundation passes formatting, Clippy, all 20 unit tests, documentation generation, and the CLI demonstration in GitHub Actions.
+
 Gravity is an adaptive computational runtime designed to change the topology of a running computational system while preserving required state and correctness.
 
 Its central research problem is safe live topology transformation: adding, removing, splitting, replacing, and reconnecting computational cells without restarting the entire application.
