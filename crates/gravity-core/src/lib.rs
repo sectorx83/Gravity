@@ -12,7 +12,10 @@ pub struct Message {
 
 impl Message {
     pub fn new(id: u64, payload: impl Into<Vec<u8>>) -> Self {
-        Self { id, payload: payload.into() }
+        Self {
+            id,
+            payload: payload.into(),
+        }
     }
 }
 
@@ -23,7 +26,9 @@ pub struct CellError {
 
 impl CellError {
     pub fn new(message: impl Into<String>) -> Self {
-        Self { message: message.into() }
+        Self {
+            message: message.into(),
+        }
     }
 }
 
@@ -67,7 +72,9 @@ pub trait Cell: Send {
         if state.is_empty() {
             Ok(())
         } else {
-            Err(CellError::new("stateless cell cannot restore a non-empty snapshot"))
+            Err(CellError::new(
+                "stateless cell cannot restore a non-empty snapshot",
+            ))
         }
     }
 }
@@ -133,20 +140,41 @@ pub enum RuntimeError {
     RuntimeNotRunning,
     RuntimeRunning,
     RuntimeFailed,
-    CellStartFailed { cell: CellId, source: CellError },
+    CellStartFailed {
+        cell: CellId,
+        source: CellError,
+    },
     CellStartRollbackFailed {
         cell: CellId,
         start_error: CellError,
         rollback_error: CellError,
     },
-    CellStopFailed { cell: CellId, source: CellError },
+    CellStopFailed {
+        cell: CellId,
+        source: CellError,
+    },
     DuplicateCell(CellId),
     UnknownCell(CellId),
-    QueueCapacityExceeded { limit: usize, attempted: usize },
-    DeliveryLimitExceeded { limit: usize, attempted: usize },
-    StepLimitExceeded { limit: usize, remaining: usize },
-    CellSnapshotFailed { cell: CellId, source: CellError },
-    CellFailed { cell: CellId, source: CellError },
+    QueueCapacityExceeded {
+        limit: usize,
+        attempted: usize,
+    },
+    DeliveryLimitExceeded {
+        limit: usize,
+        attempted: usize,
+    },
+    StepLimitExceeded {
+        limit: usize,
+        remaining: usize,
+    },
+    CellSnapshotFailed {
+        cell: CellId,
+        source: CellError,
+    },
+    CellFailed {
+        cell: CellId,
+        source: CellError,
+    },
     CellRollbackFailed {
         cell: CellId,
         process_error: CellError,
@@ -154,7 +182,10 @@ pub enum RuntimeError {
     },
     TopologyMismatch,
     SnapshotCellSetMismatch,
-    CellRestoreFailed { cell: CellId, source: CellError },
+    CellRestoreFailed {
+        cell: CellId,
+        source: CellError,
+    },
     RestoreRollbackFailed {
         cell: CellId,
         restore_error: CellError,
@@ -470,7 +501,10 @@ impl Runtime {
             return Err(RuntimeError::TopologyMismatch);
         }
         if self.cells.len() != snapshot.cell_states.len()
-            || self.cells.keys().any(|id| !snapshot.cell_states.contains_key(id))
+            || self
+                .cells
+                .keys()
+                .any(|id| !snapshot.cell_states.contains_key(id))
         {
             return Err(RuntimeError::SnapshotCellSetMismatch);
         }
@@ -551,7 +585,10 @@ impl Runtime {
                 Ok(state) => state,
                 Err(source) => {
                     self.queue.push_front((cell_id.clone(), message));
-                    return Err(RuntimeError::CellSnapshotFailed { cell: cell_id, source });
+                    return Err(RuntimeError::CellSnapshotFailed {
+                        cell: cell_id,
+                        source,
+                    });
                 }
             };
 
@@ -581,7 +618,7 @@ impl Runtime {
                                 process_error,
                                 rollback_error,
                             })
-                        },
+                        }
                     };
                 }
             };
@@ -805,7 +842,10 @@ mod tests {
         }
 
         fn on_start(&mut self) -> Result<(), CellError> {
-            self.events.lock().unwrap().push(format!("start:{}", self.name));
+            self.events
+                .lock()
+                .unwrap()
+                .push(format!("start:{}", self.name));
             if self.fail_start {
                 return Err(CellError::new("injected start failure"));
             }
@@ -813,7 +853,10 @@ mod tests {
         }
 
         fn on_stop(&mut self) -> Result<(), CellError> {
-            self.events.lock().unwrap().push(format!("stop:{}", self.name));
+            self.events
+                .lock()
+                .unwrap()
+                .push(format!("stop:{}", self.name));
             Ok(())
         }
     }
@@ -822,16 +865,26 @@ mod tests {
     fn lifecycle_starts_in_order_and_stops_in_reverse_order() {
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut runtime = Runtime::new();
-        runtime.add_cell("b", LifecycleProbe {
-            name: "b",
-            events: Arc::clone(&events),
-            fail_start: false,
-        }).unwrap();
-        runtime.add_cell("a", LifecycleProbe {
-            name: "a",
-            events: Arc::clone(&events),
-            fail_start: false,
-        }).unwrap();
+        runtime
+            .add_cell(
+                "b",
+                LifecycleProbe {
+                    name: "b",
+                    events: Arc::clone(&events),
+                    fail_start: false,
+                },
+            )
+            .unwrap();
+        runtime
+            .add_cell(
+                "a",
+                LifecycleProbe {
+                    name: "a",
+                    events: Arc::clone(&events),
+                    fail_start: false,
+                },
+            )
+            .unwrap();
 
         runtime.start().unwrap();
         assert_eq!(runtime.state(), RuntimeState::Running);
@@ -847,16 +900,26 @@ mod tests {
     fn failed_start_cleans_up_attempted_cells() {
         let events = Arc::new(Mutex::new(Vec::new()));
         let mut runtime = Runtime::new();
-        runtime.add_cell("a", LifecycleProbe {
-            name: "a",
-            events: Arc::clone(&events),
-            fail_start: false,
-        }).unwrap();
-        runtime.add_cell("b", LifecycleProbe {
-            name: "b",
-            events: Arc::clone(&events),
-            fail_start: true,
-        }).unwrap();
+        runtime
+            .add_cell(
+                "a",
+                LifecycleProbe {
+                    name: "a",
+                    events: Arc::clone(&events),
+                    fail_start: false,
+                },
+            )
+            .unwrap();
+        runtime
+            .add_cell(
+                "b",
+                LifecycleProbe {
+                    name: "b",
+                    events: Arc::clone(&events),
+                    fail_start: true,
+                },
+            )
+            .unwrap();
 
         assert!(matches!(
             runtime.start(),
@@ -880,7 +943,10 @@ mod tests {
         runtime.stop().unwrap();
         assert_eq!(runtime.state(), RuntimeState::Stopped);
         assert_eq!(runtime.pending_messages(), 1);
-        assert_eq!(runtime.run_until_idle(1).unwrap_err(), RuntimeError::RuntimeNotRunning);
+        assert_eq!(
+            runtime.run_until_idle(1).unwrap_err(),
+            RuntimeError::RuntimeNotRunning
+        );
         runtime.start().unwrap();
         runtime.run_until_idle(1).unwrap();
         assert_eq!(runtime.pending_messages(), 0);
@@ -1003,7 +1069,9 @@ mod tests {
     #[test]
     fn failed_processing_rollback_quarantines_the_runtime() {
         let mut runtime = Runtime::new();
-        runtime.add_cell("unstable", CannotRollback { value: 0 }).unwrap();
+        runtime
+            .add_cell("unstable", CannotRollback { value: 0 })
+            .unwrap();
         runtime.start().unwrap();
         runtime
             .inject("unstable", Message::new(1, b"work".to_vec()))
@@ -1070,8 +1138,12 @@ mod tests {
         runtime.add_cell("a", RejectRestore { value: 1 }).unwrap();
         runtime.add_cell("b", RejectRestore { value: 2 }).unwrap();
         let mut checkpoint = runtime.snapshot().unwrap();
-        checkpoint.cell_states.insert("a".to_owned(), encoded_counter(10));
-        checkpoint.cell_states.insert("b".to_owned(), encoded_counter(99));
+        checkpoint
+            .cell_states
+            .insert("a".to_owned(), encoded_counter(10));
+        checkpoint
+            .cell_states
+            .insert("b".to_owned(), encoded_counter(99));
         assert!(matches!(
             runtime.restore(&checkpoint),
             Err(RuntimeError::CellRestoreFailed { .. })
@@ -1200,7 +1272,10 @@ mod tests {
         assert_eq!(runtime.cell_count(), 2);
         assert!(runtime.contains_cell("input"));
         assert!(!runtime.contains_cell("missing"));
-        assert_eq!(runtime.cell_ids().collect::<Vec<_>>(), vec!["input", "output"]);
+        assert_eq!(
+            runtime.cell_ids().collect::<Vec<_>>(),
+            vec!["input", "output"]
+        );
         assert_eq!(
             runtime.topology()["input"]
                 .iter()
