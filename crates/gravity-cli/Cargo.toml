@@ -1,0 +1,12 @@
+[package]
+name = "gravity-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command-line entry point and demonstrations for Gravity"
+
+[dependencies]
+gravity-core = { path = "../gravity-core" }
+
+[lints]
+workspace = true
