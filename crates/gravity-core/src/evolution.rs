@@ -29,7 +29,7 @@ pub struct TopologyTransaction {
     transfers: Vec<StateTransfer>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum EvolutionError {
     Runtime(RuntimeError),
     InvalidCandidate(String),
@@ -267,7 +267,7 @@ impl Runtime {
         }
 
         for id in &tx.removals { self.cells.remove(id); }
-        for (id, cell) in tx.additions.drain() { self.cells.insert(id, cell); }
+        for (id, cell) in tx.additions { self.cells.insert(id, cell); }
         self.edges = tx.edges;
         self.queue = queue;
 
