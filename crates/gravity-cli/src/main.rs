@@ -75,8 +75,7 @@ fn run_evolution_demo() -> Result<(), Box<dyn std::error::Error>> {
     runtime.connect("processor-a", "output")?;
     runtime.start()?;
 
-    runtime.inject("input", Message::new(1, b"gravity evolution".to_vec()))?;
-    runtime.run_until_idle(1)?;
+    runtime.inject("processor-a", Message::new(1, b"gravity evolution".to_vec()))?;
 
     let mut transaction = runtime.topology_transaction();
     transaction.add_cell("processor-b", CountingProcessor(0))?;
