@@ -353,7 +353,7 @@ impl Runtime {
             started.push(id);
         }
 
-        let mut restored_existing = Vec::new();
+        let mut restored_existing: Vec<CellId> = Vec::new();
         let mut migrated_destinations = BTreeSet::new();
         for transfer in &tx.transfers {
             let desired = states
@@ -405,7 +405,7 @@ impl Runtime {
             }
         }
 
-        let mut stopped = Vec::new();
+        let mut stopped: Vec<CellId> = Vec::new();
         for id in &tx.removals {
             if let Some(cell) = self.cells.get_mut(id) {
                 if let Err(error) = cell.on_stop() {
