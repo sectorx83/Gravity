@@ -311,7 +311,7 @@ impl Runtime {
         })
         .map_err(EvolutionError::ValidationFailed)?;
 
-        let mut started = Vec::new();
+        let mut started: Vec<CellId> = Vec::new();
         for id in tx.additions.keys().cloned().collect::<Vec<_>>() {
             let result = tx
                 .additions
