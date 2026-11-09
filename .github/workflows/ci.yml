@@ -28,5 +28,7 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Build documentation
         run: cargo doc --workspace --no-deps
-      - name: Run CLI demonstration
+      - name: Run Phase 1 CLI demonstration
         run: cargo run --quiet -p gravity-cli -- demo
+      - name: Run Phase 2 live evolution demonstration
+        run: cargo run --quiet -p gravity-cli -- evolve-demo
