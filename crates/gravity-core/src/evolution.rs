@@ -324,7 +324,7 @@ impl AdaptationPolicy {
             || self.queue_pressure_percent > 100 || self.hot_cell_share_percent > 100
             || metrics.queue_high_water > metrics.queue_capacity
             || metrics.per_cell_processed.values().any(|count| *count > metrics.processed_messages)
-            || metrics.per_cell_processed.values().copied().sum::<u64>() > metrics.processed_messages {
+            || metrics.per_cell_processed.values().copied().fold(0_u64, u64::saturating_add) > metrics.processed_messages {
             return None;
         }
         let pressure = metrics.queue_high_water.saturating_mul(100) / metrics.queue_capacity;
