@@ -193,3 +193,129 @@ fn adaptation_rejects_impossible_or_inconsistent_metrics() {
     };
     assert!(policy.evaluate(&inconsistent).is_none());
 }
+
+struct FailStop(Arc<Mutex<usize>>);
+impl Cell for FailStop {
+    fn process(&mut self, message: Message) -> Result<Vec<Message>, CellError> {
+        Ok(vec![message])
+    }
+
+    fn on_start(&mut self) -> Result<(), CellError> {
+        *self.0.lock().expect("start counter lock poisoned") += 1;
+        Ok(())
+    }
+
+    fn on_stop(&mut self) -> Result<(), CellError> {
+        Err(CellError::new("injected stop failure"))
+    }
+}
+
+struct FailStart(Arc<Mutex<usize>>);
+impl Cell for FailStart {
+    fn process(&mut self, message: Message) -> Result<Vec<Message>, CellError> {
+        Ok(vec![message])
+    }
+
+    fn on_start(&mut self) -> Result<(), CellError> {
+        Err(CellError::new("injected start failure"))
+    }
+
+    fn on_stop(&mut self) -> Result<(), CellError> {
+        *self.0.lock().expect("cleanup counter lock poisoned") += 1;
+        Ok(())
+    }
+}
+
+struct NoSnapshot;
+impl Cell for NoSnapshot {
+    fn process(&mut self, message: Message) -> Result<Vec<Message>, CellError> {
+        Ok(vec![message])
+    }
+
+    fn snapshot(&self) -> Result<Vec<u8>, CellError> {
+        Err(CellError::new("injected snapshot failure"))
+    }
+}
+
+#[test]
+fn failed_removal_restarts_the_cell_and_preserves_the_old_topology() {
+    let starts = Arc::new(Mutex::new(0));
+    let mut runtime = Runtime::new();
+    runtime
+        .add_cell("processor", FailStop(Arc::clone(&starts)))
+        .unwrap();
+    runtime.start().unwrap();
+
+    let mut tx = runtime.topology_transaction();
+    tx.remove_cell("processor").unwrap();
+
+    assert!(matches!(
+        runtime.evolve(tx, |_| Ok(())),
+        Err(EvolutionError::LifecycleFailed { .. })
+    ));
+    assert_eq!(*starts.lock().unwrap(), 2);
+    assert_eq!(runtime.state(), RuntimeState::Running);
+    assert!(runtime.contains_cell("processor"));
+    assert_eq!(runtime.cell_count(), 1);
+}
+
+#[test]
+fn failed_new_cell_start_runs_cleanup_without_committing_topology() {
+    let cleanups = Arc::new(Mutex::new(0));
+    let mut runtime = Runtime::new();
+    runtime.add_cell("existing", Pass).unwrap();
+    runtime.start().unwrap();
+
+    let mut tx = runtime.topology_transaction();
+    tx.add_cell("unstable", FailStart(Arc::clone(&cleanups)))
+        .unwrap();
+
+    assert!(matches!(
+        runtime.evolve(tx, |_| Ok(())),
+        Err(EvolutionError::LifecycleFailed { .. })
+    ));
+    assert_eq!(*cleanups.lock().unwrap(), 1);
+    assert_eq!(runtime.state(), RuntimeState::Running);
+    assert_eq!(runtime.cell_count(), 1);
+    assert!(!runtime.contains_cell("unstable"));
+}
+
+#[test]
+fn snapshot_failure_aborts_evolution_without_losing_queued_work() {
+    let mut runtime = Runtime::new();
+    runtime.add_cell("unsnapshotable", NoSnapshot).unwrap();
+    runtime.start().unwrap();
+    runtime
+        .inject("unsnapshotable", Message::new(11, b"queued".to_vec()))
+        .unwrap();
+
+    let tx = runtime.topology_transaction();
+    assert!(matches!(
+        runtime.evolve(tx, |_| Ok(())),
+        Err(EvolutionError::Runtime(_))
+    ));
+    assert_eq!(runtime.state(), RuntimeState::Running);
+    assert_eq!(runtime.pending_messages(), 1);
+}
+
+#[test]
+fn partition_failure_aborts_evolution_without_losing_queued_work() {
+    let mut runtime = Runtime::new();
+    runtime.add_cell("processor", Pass).unwrap();
+    runtime.start().unwrap();
+    runtime
+        .inject("processor", Message::new(12, b"queued".to_vec()))
+        .unwrap();
+
+    let mut tx = runtime.topology_transaction();
+    tx.partition_pending("processor", |_message: &Message| {
+        Err(CellError::new("injected partition failure"))
+    });
+
+    assert!(matches!(
+        runtime.evolve(tx, |_| Ok(())),
+        Err(EvolutionError::PartitionFailed { .. })
+    ));
+    assert_eq!(runtime.state(), RuntimeState::Running);
+    assert_eq!(runtime.pending_messages(), 1);
+}
