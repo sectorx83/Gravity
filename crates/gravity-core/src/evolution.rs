@@ -206,7 +206,8 @@ impl Runtime {
             started.push(id);
         }
 
-        let mut restored = Vec::new();
+        let mut restored_existing = Vec::new();
+        let mut migrated_destinations = BTreeSet::new();
         for transfer in &tx.transfers {
             let desired = states.get(&transfer.destination).expect("migrated state exists");
             let result = if let Some(cell) = tx.additions.get_mut(&transfer.destination) {
@@ -217,7 +218,7 @@ impl Runtime {
                 Err(CellError::new("destination cell is not installed"))
             };
             if let Err(error) = result {
-                for id in restored.iter().rev() {
+                for id in restored_existing.iter().rev() {
                     if let (Some(cell), Some(state)) = (self.cells.get_mut(id), old_states.get(id)) {
                         if let Err(rollback) = cell.restore(state) {
                             self.state = RuntimeState::Failed;
@@ -235,7 +236,10 @@ impl Runtime {
                     source: transfer.source.clone(), destination: transfer.destination.clone(), message: error.to_string()
                 });
             }
-            if self.cells.contains_key(&transfer.destination) { restored.push(transfer.destination.clone()); }
+            migrated_destinations.insert(transfer.destination.clone());
+            if self.cells.contains_key(&transfer.destination) {
+                restored_existing.push(transfer.destination.clone());
+            }
         }
 
         let mut stopped = Vec::new();
@@ -275,7 +279,7 @@ impl Runtime {
             cells_before, cells_after: self.cells.len(), edges_before,
             edges_after: self.edges.values().map(BTreeSet::len).sum(),
             pending_before, pending_after: self.queue.len(),
-            migrated_destinations: restored.len(), partitioned_messages: partitioned,
+            migrated_destinations: migrated_destinations.len(), partitioned_messages: partitioned,
         })
     }
 }
@@ -308,7 +312,13 @@ impl AdaptationPolicy {
     /// workload concentration both cross configured thresholds. It never mutates topology.
     pub fn evaluate(&self, metrics: &AdaptationMetrics) -> Option<AdaptationRecommendation> {
         if metrics.processed_messages < self.minimum_samples || metrics.window_micros == 0
-            || metrics.queue_capacity == 0 || metrics.per_cell_processed.is_empty() { return None; }
+            || metrics.queue_capacity == 0 || metrics.per_cell_processed.is_empty()
+            || self.queue_pressure_percent > 100 || self.hot_cell_share_percent > 100
+            || metrics.queue_high_water > metrics.queue_capacity
+            || metrics.per_cell_processed.values().any(|count| *count > metrics.processed_messages)
+            || metrics.per_cell_processed.values().copied().sum::<u64>() > metrics.processed_messages {
+            return None;
+        }
         let pressure = metrics.queue_high_water.saturating_mul(100) / metrics.queue_capacity;
         if pressure < usize::from(self.queue_pressure_percent) { return None; }
         let (cell, count) = metrics.per_cell_processed.iter().max_by_key(|(_, count)| *count)?;
