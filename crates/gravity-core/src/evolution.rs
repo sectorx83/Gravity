@@ -260,7 +260,7 @@ impl Runtime {
                             return Err(EvolutionError::RollbackFailed { cell: stopped_id.clone(), message: rollback.to_string() });
                         }
                     }
-                    for restored_id in restored.iter().rev() {
+                    for restored_id in restored_existing.iter().rev() {
                         if let Err(rollback) = self.cells.get_mut(restored_id).expect("existing cell remains").restore(old_states.get(restored_id).expect("rollback snapshot exists")) {
                             self.state = RuntimeState::Failed;
                             return Err(EvolutionError::RollbackFailed { cell: restored_id.clone(), message: rollback.to_string() });
