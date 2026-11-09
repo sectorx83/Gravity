@@ -39,6 +39,17 @@ Under a controlled workload:
 - Keep the old topology recoverable until the new topology is committed.
 - Measure correctness and performance; throughput alone is insufficient.
 
+## Automated verification
+
+Run the complete workspace checks:
+
+    cargo fmt --all -- --check
+    cargo clippy --workspace --all-targets -- -D warnings
+    cargo test --workspace --all-targets
+    cargo run -p gravity-cli -- evolve-demo
+
+The integration suite exercises live add/reconnect, state transfer, work partitioning, cell removal and pending-work rerouting. It also injects snapshot, partition, migration, validation, and lifecycle failures and verifies that the previous topology and accepted queue remain intact. The CLI demonstration performs a live Input -> Processor A -> Output evolution, adds Processor B, partitions queued work, transfers state, validates the candidate, and continues processing without restarting.
+
 ## Exit criteria
 
-Phase 2 is complete only when the required demonstration is automated and repeatable, including injected failures during snapshot, migration, validation, and cutover.
+Phase 2 is complete when the automated workspace checks and the live evolution demonstration pass on main. The runtime remains deliberately single-threaded and in-memory: this phase does not claim distributed consensus, durable cross-process transactions, or automatic partitioning of workloads without an explicit partitioner.
