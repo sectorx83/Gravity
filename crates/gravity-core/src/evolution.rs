@@ -195,6 +195,10 @@ impl Runtime {
         for id in tx.additions.keys().cloned().collect::<Vec<_>>() {
             let result = tx.additions.get_mut(&id).expect("staged cell exists").on_start();
             if let Err(error) = result {
+                if let Err(rollback) = tx.additions.get_mut(&id).expect("staged cell exists").on_stop() {
+                    self.state = RuntimeState::Failed;
+                    return Err(EvolutionError::RollbackFailed { cell: id, message: rollback.to_string() });
+                }
                 for started_id in started.iter().rev() {
                     if let Err(rollback) = tx.additions.get_mut(started_id).expect("staged cell exists").on_stop() {
                         self.state = RuntimeState::Failed;
@@ -246,6 +250,10 @@ impl Runtime {
         for id in &tx.removals {
             if let Some(cell) = self.cells.get_mut(id) {
                 if let Err(error) = cell.on_stop() {
+                    if let Err(rollback) = cell.on_start() {
+                        self.state = RuntimeState::Failed;
+                        return Err(EvolutionError::RollbackFailed { cell: id.clone(), message: rollback.to_string() });
+                    }
                     for stopped_id in stopped.iter().rev() {
                         if let Err(rollback) = self.cells.get_mut(stopped_id).expect("removed cell still present").on_start() {
                             self.state = RuntimeState::Failed;
