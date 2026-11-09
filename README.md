@@ -67,6 +67,7 @@ Install a stable Rust toolchain, then run:
     cargo clippy --workspace --all-targets -- -D warnings
     cargo test --workspace --all-targets
     cargo run -p gravity-cli -- demo
+    cargo run -p gravity-cli -- evolve-demo
 
 ## Project structure
 
