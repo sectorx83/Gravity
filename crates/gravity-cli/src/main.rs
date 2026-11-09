@@ -75,7 +75,10 @@ fn run_evolution_demo() -> Result<(), Box<dyn std::error::Error>> {
     runtime.connect("processor-a", "output")?;
     runtime.start()?;
 
-    runtime.inject("processor-a", Message::new(1, b"gravity evolution".to_vec()))?;
+    runtime.inject(
+        "processor-a",
+        Message::new(1, b"gravity evolution".to_vec()),
+    )?;
 
     let mut transaction = runtime.topology_transaction();
     transaction.add_cell("processor-b", CountingProcessor(0))?;
@@ -86,8 +89,14 @@ fn run_evolution_demo() -> Result<(), Box<dyn std::error::Error>> {
         let midpoint = message.payload.len() / 2;
         let (left, right) = message.payload.split_at(midpoint);
         Ok(vec![
-            ("processor-a".to_owned(), Message::new(message.id, left.to_vec())),
-            ("processor-b".to_owned(), Message::new(message.id.saturating_add(1), right.to_vec())),
+            (
+                "processor-a".to_owned(),
+                Message::new(message.id, left.to_vec()),
+            ),
+            (
+                "processor-b".to_owned(),
+                Message::new(message.id.saturating_add(1), right.to_vec()),
+            ),
         ])
     });
     transaction.transfer_state("processor-a", "processor-b", |state| Ok(state.to_vec()));

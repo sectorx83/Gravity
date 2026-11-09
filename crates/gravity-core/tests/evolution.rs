@@ -80,16 +80,18 @@ fn live_evolution_migrates_state_partitions_work_and_keeps_runtime_running() {
     });
     tx.transfer_state("processor-a", "processor-b", |state| Ok(state.to_vec()));
 
-    let report = runtime.evolve(tx, |candidate| {
-        if !candidate
-            .edges
-            .get("input")
-            .is_some_and(|targets| targets.contains("processor-b"))
-        {
-            return Err("replacement processor is not connected".into());
-        }
-        Ok(())
-    }).unwrap();
+    let report = runtime
+        .evolve(tx, |candidate| {
+            if !candidate
+                .edges
+                .get("input")
+                .is_some_and(|targets| targets.contains("processor-b"))
+            {
+                return Err("replacement processor is not connected".into());
+            }
+            Ok(())
+        })
+        .unwrap();
 
     assert_eq!(runtime.state(), RuntimeState::Running);
     assert_eq!(report.cells_after, 4);
